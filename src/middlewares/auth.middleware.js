@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const prisma = require('../config/prisma'); // หรือ path ที่คุณใช้จริง
+const prisma = require('../config/db'); // หรือ path ที่คุณใช้จริง
 const JWT_SECRET = process.env.JWT_SECRET;
 
 
@@ -43,6 +43,4 @@ async function authMiddleware(req, res, next) {
     }
 }
 
-module.exports = {
-    authMiddleware,
-};
+module.exports = authMiddleware;
