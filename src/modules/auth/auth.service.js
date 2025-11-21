@@ -62,7 +62,6 @@ async function signup({ email, password, username }) {
     };
 }
 
-
 async function login({ email, password }) {
     // 1) หา user จาก email ใน database
     const user = await prisma.user.findUnique({ where: { email } });
