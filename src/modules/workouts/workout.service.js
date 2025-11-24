@@ -1,4 +1,6 @@
+const { Debug } = require('@prisma/client/runtime/library');
 const prisma = require('../../config/db');
+const { Status } = require('@prisma/client');
 
 async function listWorkouts(userId, status) {
     // TODO:
@@ -65,6 +67,110 @@ async function createWorkout(userId, payload) {
     });
 }
 
+async function updateWorkout(userId, workoutId, data) {
+    const existing = await prisma.workout.findFirst({
+        where: {
+            id: workoutId,
+            user_id: userId,
+        }
+    });
+
+    if (!existing) {
+        return {
+            success: false,
+            message: "Workout not found"
+        };
+    }
+
+    let updateData = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.scheduled_at !== undefined) updateData.scheduled_at = new Date(data.scheduled_at);
+
+    if (Object.keys(updateData).length === 0) {
+        return { success: true, data: existing };
+    }
+
+    const updated = await prisma.workout.update({
+        where: { id: existing.id },
+        data: updateData,
+        include: { exercises: true },
+    });
+
+    return { success: true, data: updated };
+}
+
+async function deleteWorkout(userId, workoutId) {
+    const existing = await prisma.workout.findFirst({
+        where: {
+            id: workoutId,
+            user_id: userId,
+        }
+    });
+
+    if (!existing) {
+        return {
+            success: false,
+            message: "Workout not found"
+        };
+    }
+
+    await prisma.workoutExercise.deleteMany({
+        where: { workout_id: workoutId },
+    });
+
+    await prisma.workoutLog.deleteMany({
+        where: { workout_id: workoutId },
+    });
+
+    await prisma.workout.delete({
+        where: { id: workoutId }
+    });
+
+    return { success: true, status: 200 };
+}
+
+async function completeWorkout(userId, workoutId, payload) {
+    const existing = await prisma.workout.findFirst({
+        where: {
+            id: workoutId,
+            user_id: userId,
+        }
+    });
+
+    if (!existing) {
+        return {
+            success: false,
+            message: "Workout not found"
+        };
+    }
+
+    if (!payload || typeof payload.total_duration !== 'number') {
+        return {
+            success: false,
+            message: 'total_duration is required and must be a number',
+        };
+    }
+
+
+    await prisma.workout.update({
+        where: { id: workoutId },
+        data: { status: Status.COMPLETED }
+    });
+
+    const WorkoutLog = await prisma.workoutLog.create({
+        data: {
+            workout_id: workoutId,
+            performed_at: payload.performed_at ? new Date(payload.performed_at) : new Date(),
+            total_duration: Number(payload.total_duration),
+            notes: payload.notes
+        },
+    });
+
+    return { success: true, data: WorkoutLog };
+}
+
 // Payload
 /*
 {
@@ -81,4 +187,7 @@ async function createWorkout(userId, payload) {
 module.exports = {
     listWorkouts,
     createWorkout,
+    updateWorkout,
+    deleteWorkout,
+    completeWorkout
 };
