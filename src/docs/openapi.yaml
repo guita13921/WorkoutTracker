@@ -1,0 +1,416 @@
+openapi: 3.0.3
+
+info:
+  title: Workout Tracker API
+  version: 1.0.0
+  description: >
+    REST API for a workout tracker application.
+    Users can sign up, log in, manage workouts, and track their progress.
+
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Local development server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - username
+        - email
+
+  WorkoutExercise:
+    type: object
+    properties:
+      id:
+        type: integer
+      exercise_id:
+        type: integer
+      sets:
+        type: integer
+        nullable: true
+      reps:
+        type: integer
+        nullable: true
+      weight:
+        type: integer
+      order_index:
+        type: integer
+    required:
+      - id
+      - exercise_id
+      - weight
+      - order_index
+
+  Workout:
+    type: object
+    properties:
+      id:
+        type: integer
+      user_id:
+        type: integer
+      title:
+        type: string
+      notes:
+        type: string
+      status:
+        type: string
+        enum: [PENDING, ACTIVE, COMPLETED, CANCELED]
+      scheduled_at:
+        type: string
+        format: date-time
+      exercises:
+        type: array
+        items:
+          $ref: '#/components/schemas/WorkoutExercise'
+    required:
+      - id
+      - user_id
+      - title
+      - status
+      - scheduled_at
+
+  WorkoutLog:
+    type: object
+    properties:
+      id:
+        type: integer
+      workout_id:
+        type: integer
+      performed_at:
+        type: string
+        format: date-time
+      total_duration:
+        type: integer
+      notes:
+        type: string
+    required:
+      - id
+      - workout_id
+      - performed_at
+      - total_duration
+
+  AuthResponse:
+    type: object
+    properties:
+      success:
+        type: boolean
+      token:
+        type: string
+      user:
+        $ref: '#/components/schemas/User'
+    required:
+      - success
+      - token
+      - user
+
+paths:
+  /auth/signup:
+    post:
+      summary: User signup
+      description: Create a new user account.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required:
+                - username
+                - email
+                - password
+      responses:
+        '200':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input or email already in use
+
+  /auth/login:
+    post:
+      summary: User login
+      description: Login with email and password to obtain a JWT token.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid email or password
+
+  /workouts:
+    get:
+      summary: List workouts of the current user
+      tags:
+        - Workouts
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [PENDING, ACTIVE, COMPLETED, CANCELED]
+          required: false
+          description: Filter workouts by status
+      security:
+        - bearerAuth: []   # เดี๋ยวไปประกาศใน components.securitySchemes
+      responses:
+        '200':
+          description: List of workouts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workout'
+    post:
+      summary: Create a new workout for the current user
+      tags:
+        - Workouts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                notes:
+                  type: string
+                scheduled_at:
+                  type: string
+                  format: date-time
+                exercises:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      exercise_id:
+                        type: integer
+                      sets:
+                        type: integer
+                      reps:
+                        type: integer
+                      weight:
+                        type: integer
+                      order_index:
+                        type: integer
+                    required:
+                      - exercise_id
+                      - weight
+                      - order_index
+              required:
+                - title
+                - scheduled_at
+      responses:
+        '201':
+          description: Workout created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Workout'
+        '400':
+          description: Invalid input
+
+  /workouts/{id}:
+    patch:
+      summary: Update Workout Status
+      tags:
+        - Workouts
+      security:
+        - bearerAuth: []
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        description: The ID of the workout to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+              title:
+                type: string
+              notes:
+                type: string
+              status:
+                type: string
+                enum: [PENDING, ACTIVE, COMPLETED, CANCELED]
+              scheduled_at:
+                type: string
+                format: date-time
+              exercises:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    exercise_id:
+                      type: integer
+                    sets:
+                      type: integer
+                    reps:
+                      type: integer
+                    weight:
+                      type: integer
+                    order_index:
+                      type: integer
+      responses:
+        '201':
+          description: Workout updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Workout'
+        '400':
+          description: Invalid input
+        '404':
+          description: Workout not found
+
+    delete:
+      summary: Delete Workout
+      tags:
+        - Workouts
+      security:
+        - bearerAuth: []
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        description: The ID of the workout to delete
+      requestBody:
+        required: false
+      responses:
+        '200':
+          description: Workout deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '400':
+          description: Invalid input
+        '404':
+          description: Workout not found
+
+  /workouts/{id}/complete:
+    post:
+      summary: Complete workout and Create Wotkout log
+      tags:
+        - Workouts
+      security:
+        - bearerAuth: []
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        description: The ID of the workout to complete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+              total_duration:
+                type: integer
+              notes:
+                type: string
+              performed_at:
+                type: string
+                format: date-time
+      responses:
+        '200':
+          description: Workout completed and log created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/WorkoutLog'
+        '400':
+          description: Invalid input
+        '404':
+          description: Workout not found
+
