@@ -1,6 +1,7 @@
 process.env.JWT_SECRET = 'test-secret';
 const authService = require('../../src/modules/auth/auth.service');
 const workoutService = require('../../src/modules/workouts/workout.service');
+const reportService = require('../../src/modules/reports/reports.service');
 const bcrypt = require('bcrypt');
 
 jest.mock('../../src/config/db', () => ({
@@ -291,7 +292,6 @@ describe('workoutService.createWorkout', () => {
         // prisma.workout.create ไม่ถูกเรียก
     });
 
-
     it('exercises is empty', async () => {
         const payload = {
             title: "Push day",
@@ -322,5 +322,9 @@ describe('workoutService.completeWorkout', () => {
 });
 
 describe('workoutService.deleteWorkout', () => {
+
+});
+
+describe('reportService.getWorkoutsSummary', () => {
 
 });
